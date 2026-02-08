@@ -767,7 +767,7 @@ private fun DefaultBrowserSelector(
     Card(modifier = Modifier.fillMaxWidth()) {
         Column(modifier = Modifier.padding(URLPoliceSpacing.cardPadding)) {
             Text(
-                text = "기본 브라우지",
+                text = "기본 브라우저",
                 style = MaterialTheme.typography.titleMedium
             )
 
