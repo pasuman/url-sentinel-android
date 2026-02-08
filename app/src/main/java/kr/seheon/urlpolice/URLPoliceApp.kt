@@ -109,33 +109,34 @@ fun URLPoliceApp(
                 .padding(URLPoliceSpacing.screenPadding),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            // Show welcome screen on first launch
-            if (!hasSeenWelcome) {
-                FirstLaunchWelcomeScreen(
-                    installedBrowsers = installedBrowsers,
-                    selectedBrowser = defaultBrowser,
-                    alwaysShowResults = alwaysShowResults,
-                    onBrowserSelected = { browser ->
-                        scope.launch {
-                            browserPreferences.setDefaultBrowser(browser?.packageName)
-                        }
-                    },
-                    onAlwaysShowResultsChanged = { enabled ->
-                        scope.launch {
-                            browserPreferences.setAlwaysShowResults(enabled)
-                        }
-                    },
-                    onComplete = {
-                        scope.launch {
-                            browserPreferences.setHasSeenWelcome(true)
-                        }
-                    }
-                )
-                return@Scaffold
-            }
-
-            // No URL - show home screen
+            // No URL - show welcome/home screen
             if (interceptedUrl == null) {
+                // Show welcome screen on first launch
+                if (!hasSeenWelcome) {
+                    FirstLaunchWelcomeScreen(
+                        installedBrowsers = installedBrowsers,
+                        selectedBrowser = defaultBrowser,
+                        alwaysShowResults = alwaysShowResults,
+                        onBrowserSelected = { browser ->
+                            scope.launch {
+                                browserPreferences.setDefaultBrowser(browser?.packageName)
+                            }
+                        },
+                        onAlwaysShowResultsChanged = { enabled ->
+                            scope.launch {
+                                browserPreferences.setAlwaysShowResults(enabled)
+                            }
+                        },
+                        onComplete = {
+                            scope.launch {
+                                browserPreferences.setHasSeenWelcome(true)
+                            }
+                        }
+                    )
+                    return@Scaffold
+                }
+
+                // Show home screen
                 HomeScreen(
                     installedBrowsers = installedBrowsers,
                     selectedBrowser = defaultBrowser,
@@ -156,6 +157,7 @@ fun URLPoliceApp(
                 return@Scaffold
             }
 
+            // URL intercepted - show validation flow
             when (val state = validationState) {
                 is ValidationState.Idle -> {
                     // Should not happen when interceptedUrl is not null
@@ -164,9 +166,12 @@ fun URLPoliceApp(
                     ValidationLoadingView(url = interceptedUrl)
                 }
                 is ValidationState.Validated -> {
-                    // Safe URL that was auto-opened - don't show UI
+                    // Safe URL that was auto-opened - dismiss the app
                     if (state.result.isSafe && !alwaysShowResults && defaultBrowser != null) {
-                        // URL was already opened, just show a brief message or dismiss
+                        // URL was already opened in LaunchedEffect, just dismiss
+                        LaunchedEffect(Unit) {
+                            onDismiss()
+                        }
                         return@Scaffold
                     }
 
