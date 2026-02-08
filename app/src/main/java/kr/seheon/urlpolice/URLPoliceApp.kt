@@ -104,12 +104,12 @@ fun URLPoliceApp(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("URL Sentinel") },
+                title = { Text("URL 파수꾼") },
                 actions = {
                     IconButton(onClick = { showSettings = !showSettings }) {
                         Icon(
                             imageVector = Icons.Default.Settings,
-                            contentDescription = "Settings"
+                            contentDescription = "설정"
                         )
                     }
                 }
@@ -215,7 +215,7 @@ private fun FirstLaunchWelcomeScreen(
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
         Text(
-            text = "Welcome to URL Sentinel",
+            text = "URL 파수꾼에 오신 것을 환영합니다",
             style = MaterialTheme.typography.headlineMedium,
             textAlign = TextAlign.Center
         )
@@ -225,7 +225,7 @@ private fun FirstLaunchWelcomeScreen(
         Card(modifier = Modifier.fillMaxWidth()) {
             Column(modifier = Modifier.padding(URLPoliceSpacing.cardPadding)) {
                 Text(
-                    text = "How to use URL Sentinel",
+                    text = "URL 파수꾼 사용 방법",
                     style = MaterialTheme.typography.titleMedium
                 )
 
@@ -233,24 +233,24 @@ private fun FirstLaunchWelcomeScreen(
 
                 InstructionStep(
                     number = "1",
-                    title = "Set as Default Browser",
-                    description = "Go to Settings → Apps → Default Apps → Browser, and select URL Sentinel"
+                    title = "기본 브라우저로 설정",
+                    description = "설정 → 앱 → 기본 앱 → 브라우저로 이동하여 URL 파수꾼을 선택하세요"
                 )
 
                 Spacer(modifier = Modifier.height(URLPoliceSpacing.elementGap))
 
                 InstructionStep(
                     number = "2",
-                    title = "Choose Your Browser",
-                    description = "Select which browser you want to open links in"
+                    title = "브라우저 선택",
+                    description = "링크를 열 브라우저를 선택하세요"
                 )
 
                 Spacer(modifier = Modifier.height(URLPoliceSpacing.elementGap))
 
                 InstructionStep(
                     number = "3",
-                    title = "Configure Display",
-                    description = "Choose whether to see validation results for all URLs or only unsafe ones"
+                    title = "표시 설정",
+                    description = "모든 URL의 검증 결과를 볼지, 위험한 URL만 볼지 선택하세요"
                 )
             }
         }
@@ -260,7 +260,7 @@ private fun FirstLaunchWelcomeScreen(
         Card(modifier = Modifier.fillMaxWidth()) {
             Column(modifier = Modifier.padding(URLPoliceSpacing.cardPadding)) {
                 Text(
-                    text = "Select Your Preferred Browser",
+                    text = "선호하는 브라우저 선택",
                     style = MaterialTheme.typography.titleMedium
                 )
 
@@ -293,11 +293,11 @@ private fun FirstLaunchWelcomeScreen(
             ) {
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
-                        text = "Always show validation results",
+                        text = "항상 검증 결과 표시",
                         style = MaterialTheme.typography.bodyLarge
                     )
                     Text(
-                        text = "Display results for all URLs, including safe ones",
+                        text = "안전한 URL을 포함한 모든 URL의 결과 표시",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -419,7 +419,7 @@ private fun HomeScreen(
             ) {
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
-                        text = "Always show validation results",
+                        text = "항상 검증 결과 표시",
                         style = MaterialTheme.typography.bodyLarge
                     )
                     Text(
@@ -460,12 +460,12 @@ private fun SettingsDialog(
                 ) {
                     Column(modifier = Modifier.weight(1f)) {
                         Text(
-                            text = "Always show validation results",
+                            text = "항상 검증 결과 표시",
                             style = MaterialTheme.typography.bodyLarge
                         )
                         Spacer(modifier = Modifier.height(URLPoliceSpacing.smallGap))
                         Text(
-                            text = "Display results for all URLs, including safe ones",
+                            text = "안전한 URL을 포함한 모든 URL의 결과 표시",
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
