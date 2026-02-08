@@ -4,12 +4,16 @@ import android.net.Uri
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Lock
+import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.*
+import androidx.compose.ui.window.Dialog
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -76,14 +80,22 @@ fun URLPoliceApp(
 
     val defaultBrowserPackage by browserPreferences.defaultBrowserPackage.collectAsState(initial = null)
     val defaultBrowser = installedBrowsers.find { it.packageName == defaultBrowserPackage }
+    val alwaysShowResults by browserPreferences.alwaysShowResults.collectAsState(initial = false)
+    val hasSeenWelcome by browserPreferences.hasSeenWelcome.collectAsState(initial = false)
 
     var validationState by remember { mutableStateOf<ValidationState>(ValidationState.Idle) }
+    var showSettings by remember { mutableStateOf(false) }
 
     LaunchedEffect(interceptedUrl) {
         if (interceptedUrl != null) {
             validationState = ValidationState.Validating
             val result = validationService.validateUrl(interceptedUrl)
             validationState = ValidationState.Validated(result)
+
+            // Auto-open safe URLs if conditions are met
+            if (result.isSafe && !alwaysShowResults && defaultBrowser != null) {
+                onOpenInBrowser(interceptedUrl, defaultBrowser)
+            }
         } else {
             validationState = ValidationState.Idle
         }
@@ -92,7 +104,15 @@ fun URLPoliceApp(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("URL Sentinel") }
+                title = { Text("URL Sentinel") },
+                actions = {
+                    IconButton(onClick = { showSettings = !showSettings }) {
+                        Icon(
+                            imageVector = Icons.Default.Settings,
+                            contentDescription = "Settings"
+                        )
+                    }
+                }
             )
         }
     ) { paddingValues ->
@@ -103,15 +123,49 @@ fun URLPoliceApp(
                 .padding(URLPoliceSpacing.screenPadding),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            if (interceptedUrl == null) {
-                WelcomeView(
+            // Show welcome screen on first launch
+            if (!hasSeenWelcome) {
+                FirstLaunchWelcomeScreen(
                     installedBrowsers = installedBrowsers,
                     selectedBrowser = defaultBrowser,
+                    alwaysShowResults = alwaysShowResults,
                     onBrowserSelected = { browser ->
                         scope.launch {
                             browserPreferences.setDefaultBrowser(browser?.packageName)
                         }
+                    },
+                    onAlwaysShowResultsChanged = { enabled ->
+                        scope.launch {
+                            browserPreferences.setAlwaysShowResults(enabled)
+                        }
+                    },
+                    onComplete = {
+                        scope.launch {
+                            browserPreferences.setHasSeenWelcome(true)
+                        }
                     }
+                )
+                return@Scaffold
+            }
+
+            // No URL - show home screen
+            if (interceptedUrl == null) {
+                HomeScreen(
+                    installedBrowsers = installedBrowsers,
+                    selectedBrowser = defaultBrowser,
+                    alwaysShowResults = alwaysShowResults,
+                    showSettings = showSettings,
+                    onBrowserSelected = { browser ->
+                        scope.launch {
+                            browserPreferences.setDefaultBrowser(browser?.packageName)
+                        }
+                    },
+                    onAlwaysShowResultsChanged = { enabled ->
+                        scope.launch {
+                            browserPreferences.setAlwaysShowResults(enabled)
+                        }
+                    },
+                    onSettingsDismiss = { showSettings = false }
                 )
                 return@Scaffold
             }
@@ -124,6 +178,13 @@ fun URLPoliceApp(
                     ValidationLoadingView(url = interceptedUrl)
                 }
                 is ValidationState.Validated -> {
+                    // Safe URL that was auto-opened - don't show UI
+                    if (state.result.isSafe && !alwaysShowResults && defaultBrowser != null) {
+                        // URL was already opened, just show a brief message or dismiss
+                        return@Scaffold
+                    }
+
+                    // Show validation results for unsafe URLs or when user wants to see results
                     ValidationResultView(
                         url = interceptedUrl,
                         result = state.result,
@@ -132,6 +193,296 @@ fun URLPoliceApp(
                         onSelectDefaultBrowser = onDismiss,
                         onDismiss = onDismiss
                     )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun FirstLaunchWelcomeScreen(
+    installedBrowsers: List<Browser>,
+    selectedBrowser: Browser?,
+    alwaysShowResults: Boolean,
+    onBrowserSelected: (Browser?) -> Unit,
+    onAlwaysShowResultsChanged: (Boolean) -> Unit,
+    onComplete: () -> Unit
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .verticalScroll(rememberScrollState()),
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        Text(
+            text = "Welcome to URL Sentinel",
+            style = MaterialTheme.typography.headlineMedium,
+            textAlign = TextAlign.Center
+        )
+
+        Spacer(modifier = Modifier.height(URLPoliceSpacing.sectionGap))
+
+        Card(modifier = Modifier.fillMaxWidth()) {
+            Column(modifier = Modifier.padding(URLPoliceSpacing.cardPadding)) {
+                Text(
+                    text = "How to use URL Sentinel",
+                    style = MaterialTheme.typography.titleMedium
+                )
+
+                Spacer(modifier = Modifier.height(URLPoliceSpacing.elementGap))
+
+                InstructionStep(
+                    number = "1",
+                    title = "Set as Default Browser",
+                    description = "Go to Settings → Apps → Default Apps → Browser, and select URL Sentinel"
+                )
+
+                Spacer(modifier = Modifier.height(URLPoliceSpacing.elementGap))
+
+                InstructionStep(
+                    number = "2",
+                    title = "Choose Your Browser",
+                    description = "Select which browser you want to open links in"
+                )
+
+                Spacer(modifier = Modifier.height(URLPoliceSpacing.elementGap))
+
+                InstructionStep(
+                    number = "3",
+                    title = "Configure Display",
+                    description = "Choose whether to see validation results for all URLs or only unsafe ones"
+                )
+            }
+        }
+
+        Spacer(modifier = Modifier.height(URLPoliceSpacing.sectionGap))
+
+        Card(modifier = Modifier.fillMaxWidth()) {
+            Column(modifier = Modifier.padding(URLPoliceSpacing.cardPadding)) {
+                Text(
+                    text = "Select Your Preferred Browser",
+                    style = MaterialTheme.typography.titleMedium
+                )
+
+                Spacer(modifier = Modifier.height(URLPoliceSpacing.elementGap))
+
+                installedBrowsers.forEach { browser ->
+                    val isSelected = browser.packageName == selectedBrowser?.packageName
+
+                    BrowserSelectionItem(
+                        browser = browser,
+                        isSelected = isSelected,
+                        onClick = {
+                            val newSelection = if (isSelected) null else browser
+                            onBrowserSelected(newSelection)
+                        }
+                    )
+                }
+            }
+        }
+
+        Spacer(modifier = Modifier.height(URLPoliceSpacing.sectionGap))
+
+        Card(modifier = Modifier.fillMaxWidth()) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(URLPoliceSpacing.cardPadding),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = "Always show validation results",
+                        style = MaterialTheme.typography.bodyLarge
+                    )
+                    Text(
+                        text = "Display results for all URLs, including safe ones",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+                Switch(
+                    checked = alwaysShowResults,
+                    onCheckedChange = onAlwaysShowResultsChanged
+                )
+            }
+        }
+
+        Spacer(modifier = Modifier.height(URLPoliceSpacing.sectionGap))
+
+        Button(
+            onClick = onComplete,
+            modifier = Modifier.fillMaxWidth(),
+            enabled = selectedBrowser != null
+        ) {
+            Text("Get Started")
+        }
+    }
+}
+
+@Composable
+private fun InstructionStep(
+    number: String,
+    title: String,
+    description: String
+) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        verticalAlignment = Alignment.Top
+    ) {
+        Surface(
+            modifier = Modifier.size(32.dp),
+            shape = MaterialTheme.shapes.small,
+            color = MaterialTheme.colorScheme.primaryContainer
+        ) {
+            Box(contentAlignment = Alignment.Center) {
+                Text(
+                    text = number,
+                    style = MaterialTheme.typography.labelLarge,
+                    color = MaterialTheme.colorScheme.onPrimaryContainer
+                )
+            }
+        }
+
+        Spacer(modifier = Modifier.width(URLPoliceSpacing.elementGap))
+
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = title,
+                style = MaterialTheme.typography.bodyMedium,
+                fontWeight = androidx.compose.ui.text.font.FontWeight.Medium
+            )
+            Text(
+                text = description,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+    }
+}
+
+@Composable
+private fun HomeScreen(
+    installedBrowsers: List<Browser>,
+    selectedBrowser: Browser?,
+    alwaysShowResults: Boolean,
+    showSettings: Boolean,
+    onBrowserSelected: (Browser?) -> Unit,
+    onAlwaysShowResultsChanged: (Boolean) -> Unit,
+    onSettingsDismiss: () -> Unit
+) {
+    if (showSettings) {
+        SettingsDialog(
+            alwaysShowResults = alwaysShowResults,
+            onAlwaysShowResultsChanged = onAlwaysShowResultsChanged,
+            onDismiss = onSettingsDismiss
+        )
+    }
+
+    Column(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        Text(
+            text = "URL Sentinel is active",
+            style = MaterialTheme.typography.headlineSmall,
+            textAlign = TextAlign.Center
+        )
+
+        Spacer(modifier = Modifier.height(URLPoliceSpacing.elementGap))
+
+        Text(
+            text = "All URL clicks will be checked for security threats",
+            style = MaterialTheme.typography.bodyMedium,
+            textAlign = TextAlign.Center,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+
+        Spacer(modifier = Modifier.height(URLPoliceSpacing.sectionGap))
+
+        DefaultBrowserSelector(
+            browsers = installedBrowsers,
+            selectedBrowser = selectedBrowser,
+            onBrowserSelected = onBrowserSelected
+        )
+
+        Spacer(modifier = Modifier.height(URLPoliceSpacing.sectionGap))
+
+        Card(modifier = Modifier.fillMaxWidth()) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(URLPoliceSpacing.cardPadding),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = "Always show validation results",
+                        style = MaterialTheme.typography.bodyLarge
+                    )
+                    Text(
+                        text = "Safe URLs will open directly when disabled",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+                Switch(
+                    checked = alwaysShowResults,
+                    onCheckedChange = onAlwaysShowResultsChanged
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun SettingsDialog(
+    alwaysShowResults: Boolean,
+    onAlwaysShowResultsChanged: (Boolean) -> Unit,
+    onDismiss: () -> Unit
+) {
+    Dialog(onDismissRequest = onDismiss) {
+        Card {
+            Column(modifier = Modifier.padding(URLPoliceSpacing.cardPadding)) {
+                Text(
+                    text = "Settings",
+                    style = MaterialTheme.typography.titleLarge
+                )
+
+                Spacer(modifier = Modifier.height(URLPoliceSpacing.sectionGap))
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = "Always show validation results",
+                            style = MaterialTheme.typography.bodyLarge
+                        )
+                        Spacer(modifier = Modifier.height(URLPoliceSpacing.smallGap))
+                        Text(
+                            text = "Display results for all URLs, including safe ones",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                    Switch(
+                        checked = alwaysShowResults,
+                        onCheckedChange = onAlwaysShowResultsChanged
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(URLPoliceSpacing.sectionGap))
+
+                Button(
+                    onClick = onDismiss,
+                    modifier = Modifier.align(Alignment.End)
+                ) {
+                    Text("Close")
                 }
             }
         }
