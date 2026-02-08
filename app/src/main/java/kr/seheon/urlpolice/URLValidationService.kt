@@ -74,11 +74,11 @@ class URLValidationService {
 
     private fun buildMessage(isSafe: Boolean, reasons: List<ReasonDetail>, riskScore: Int): String {
         if (isSafe) {
-            return "No threats detected. This URL appears to be safe."
+            return "위협이 감지되지 않았습니다. 이 URL은 안전한 것으로 보입니다."
         }
 
         if (reasons.isEmpty()) {
-            return "This URL has been flagged as potentially unsafe."
+            return "이 URL은 잠재적으로 안전하지 않은 것으로 표시되었습니다."
         }
 
         // Build message from most severe reasons
@@ -93,7 +93,7 @@ class URLValidationService {
             .take(2)
             .joinToString(" ") { it.message }
 
-        return "$primaryReasons (Risk score: $riskScore/100)"
+        return "$primaryReasons (위험 점수: $riskScore/100)"
     }
 
     private fun createErrorResult(url: String, error: Exception): URLValidationResult {
@@ -102,7 +102,7 @@ class URLValidationService {
             isSafe = false,
             threatType = ThreatType.SUSPICIOUS,
             confidence = 0.5f,
-            message = "Unable to validate URL: ${error.message ?: "Network error"}. Proceed with caution."
+            message = "URL을 검증할 수 없습니다: ${error.message ?: "네트워크 오류"}. 주의하여 진행하세요."
         )
     }
 }
