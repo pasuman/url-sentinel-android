@@ -9,7 +9,7 @@ import androidx.activity.enableEdgeToEdge
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
-import kr.seheon.urlpolice.ui.theme.URLPoliceTheme
+import kr.seheon.urlpolice.ui.theme.URLSentinelTheme
 
 class MainActivity : ComponentActivity() {
     private var interceptedUrl by mutableStateOf<Uri?>(null)
@@ -21,7 +21,7 @@ class MainActivity : ComponentActivity() {
         handleIntent(intent)
 
         setContent {
-            URLPoliceTheme {
+            URLSentinelTheme {
                 URLPoliceApp(
                     interceptedUrl = interceptedUrl,
                     onDismiss = ::clearInterceptedUrl,

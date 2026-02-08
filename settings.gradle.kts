@@ -19,5 +19,5 @@ dependencyResolutionManagement {
     }
 }
 
-rootProject.name = "URL Police"
+rootProject.name = "URL Sentinel"
 include(":app")

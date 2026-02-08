@@ -92,7 +92,7 @@ fun URLPoliceApp(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("URL Police") }
+                title = { Text("URL Sentinel") }
             )
         }
     ) { paddingValues ->
