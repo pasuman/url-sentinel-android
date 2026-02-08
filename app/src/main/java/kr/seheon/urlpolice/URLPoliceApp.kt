@@ -93,7 +93,7 @@ fun URLPoliceApp(
             validationState = ValidationState.Validated(result)
 
             // Auto-open safe URLs if conditions are met
-            if (result.isSafe && !alwaysShowResults && defaultBrowser != null) {
+            if (result.isSafe && alwaysShowResults && defaultBrowser != null) {
                 onOpenInBrowser(interceptedUrl, defaultBrowser)
             }
         } else {
@@ -167,7 +167,7 @@ fun URLPoliceApp(
                 }
                 is ValidationState.Validated -> {
                     // Safe URL that was auto-opened - dismiss the app
-                    if (state.result.isSafe && !alwaysShowResults && defaultBrowser != null) {
+                    if (state.result.isSafe && alwaysShowResults && defaultBrowser != null) {
                         // URL was already opened in LaunchedEffect, just dismiss
                         LaunchedEffect(Unit) {
                             onDismiss()
@@ -175,7 +175,7 @@ fun URLPoliceApp(
                         return@Scaffold
                     }
 
-                    // Show validation results for unsafe URLs or when user wants to see results
+                    // Show validation results for unsafe URLs or when user disabled auto-open
                     ValidationResultView(
                         url = interceptedUrl,
                         result = state.result,
@@ -241,7 +241,7 @@ private fun FirstLaunchWelcomeScreen(
                 InstructionStep(
                     number = "3",
                     title = "표시 설정",
-                    description = "아래 \"항상 검증 결과 표시\"에서 모든 URL의 검증 결과를 볼지, 위험한 URL만 볼지 선택하세요"
+                    description = "아래 \"안전한 링크 자동으로 열기\"에서 안전한 URL을 바로 열지, 모든 URL의 검증 결과를 볼지 선택하세요"
                 )
 
                 Spacer(modifier = Modifier.height(URLPoliceSpacing.elementGap))
@@ -292,11 +292,11 @@ private fun FirstLaunchWelcomeScreen(
             ) {
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
-                        text = "항상 검증 결과 표시",
+                        text = "안전한 링크 자동으로 열기",
                         style = MaterialTheme.typography.bodyLarge
                     )
                     Text(
-                        text = "안전한 URL을 포함한 모든 URL의 결과 표시",
+                        text = "활성화 시 안전한 URL은 바로 열립니다",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -408,11 +408,11 @@ private fun HomeScreen(
             ) {
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
-                        text = "항상 검증 결과 표시",
+                        text = "안전한 링크 자동으로 열기",
                         style = MaterialTheme.typography.bodyLarge
                     )
                     Text(
-                        text = "안전한 링크를 바로 열려면 비활성화 하세요",
+                        text = "비활성화 시 모든 URL의 검증 결과를 표시합니다",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -449,12 +449,12 @@ private fun SettingsDialog(
                 ) {
                     Column(modifier = Modifier.weight(1f)) {
                         Text(
-                            text = "항상 검증 결과 표시",
+                            text = "안전한 링크 자동으로 열기",
                             style = MaterialTheme.typography.bodyLarge
                         )
                         Spacer(modifier = Modifier.height(URLPoliceSpacing.smallGap))
                         Text(
-                            text = "안전한 URL을 포함한 모든 URL의 결과 표시",
+                            text = "활성화 시 안전한 URL은 바로 열리고, 비활성화 시 모든 URL의 검증 결과를 표시합니다",
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
