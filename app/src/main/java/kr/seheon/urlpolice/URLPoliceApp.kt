@@ -101,21 +101,7 @@ fun URLPoliceApp(
         }
     }
 
-    Scaffold(
-        topBar = {
-            TopAppBar(
-                title = { Text("URL 파수꾼") },
-                actions = {
-                    IconButton(onClick = { showSettings = !showSettings }) {
-                        Icon(
-                            imageVector = Icons.Default.Settings,
-                            contentDescription = "설정"
-                        )
-                    }
-                }
-            )
-        }
-    ) { paddingValues ->
+    Scaffold() { paddingValues ->
         Column(
             modifier = Modifier
                 .fillMaxSize()
@@ -215,8 +201,8 @@ private fun FirstLaunchWelcomeScreen(
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
         Text(
-            text = "URL 파수꾼에 오신 것을 환영합니다",
-            style = MaterialTheme.typography.headlineMedium,
+            text = "URL 파수꾼",
+            style = MaterialTheme.typography.headlineLarge,
             textAlign = TextAlign.Center
         )
 
@@ -234,7 +220,7 @@ private fun FirstLaunchWelcomeScreen(
                 InstructionStep(
                     number = "1",
                     title = "기본 브라우저로 설정",
-                    description = "설정 → 앱 → 기본 앱 → 브라우저로 이동하여 URL 파수꾼을 선택하세요"
+                    description = "설정 - 앱 - 기본 앱 - 브라우저로 이동하여 'URL 파수꾼'을 선택하세요"
                 )
 
                 Spacer(modifier = Modifier.height(URLPoliceSpacing.elementGap))
@@ -242,7 +228,7 @@ private fun FirstLaunchWelcomeScreen(
                 InstructionStep(
                     number = "2",
                     title = "브라우저 선택",
-                    description = "링크를 열 브라우저를 선택하세요"
+                    description = "아래 \"선호하는 브라우저 선택\"에서 링크를 열 브라우저를 선택하세요"
                 )
 
                 Spacer(modifier = Modifier.height(URLPoliceSpacing.elementGap))
@@ -250,7 +236,15 @@ private fun FirstLaunchWelcomeScreen(
                 InstructionStep(
                     number = "3",
                     title = "표시 설정",
-                    description = "모든 URL의 검증 결과를 볼지, 위험한 URL만 볼지 선택하세요"
+                    description = "아래 \"항상 검증 결과 표시\"에서 모든 URL의 검증 결과를 볼지, 위험한 URL만 볼지 선택하세요"
+                )
+
+                Spacer(modifier = Modifier.height(URLPoliceSpacing.elementGap))
+
+                InstructionStep(
+                    number = "4",
+                    title = "링크 열기",
+                    description = "문자 메시지나 이메일에서 온 링크를 열어보세요. URL 파수꾼이 안전한지 검증합니다."
                 )
             }
         }
@@ -307,16 +301,6 @@ private fun FirstLaunchWelcomeScreen(
                     onCheckedChange = onAlwaysShowResultsChanged
                 )
             }
-        }
-
-        Spacer(modifier = Modifier.height(URLPoliceSpacing.sectionGap))
-
-        Button(
-            onClick = onComplete,
-            modifier = Modifier.fillMaxWidth(),
-            enabled = selectedBrowser != null
-        ) {
-            Text("Get Started")
         }
     }
 }
@@ -423,7 +407,7 @@ private fun HomeScreen(
                         style = MaterialTheme.typography.bodyLarge
                     )
                     Text(
-                        text = "Safe URLs will open directly when disabled",
+                        text = "안전한 링크를 바로 열려면 비활성화 하세요",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
