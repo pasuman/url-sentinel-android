@@ -500,14 +500,14 @@ private fun ValidationLoadingView(url: Uri) {
                 Spacer(modifier = Modifier.height(URLPoliceSpacing.screenPadding))
 
                 Text(
-                    text = "Analyzing URL...",
+                    text = "URL을 분석중입니다...",
                     style = MaterialTheme.typography.titleMedium
                 )
 
                 Spacer(modifier = Modifier.height(URLPoliceSpacing.elementGap))
 
                 Text(
-                    text = "Checking for phishing, malware, and other threats",
+                    text = "위협을 탐지중입니다...",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     textAlign = TextAlign.Center
@@ -548,7 +548,7 @@ private fun ValidationResultView(
             onClick = onDismiss,
             modifier = Modifier.fillMaxWidth()
         ) {
-            Text("Dismiss")
+            Text("열지 않기")
         }
     }
 }
@@ -567,7 +567,7 @@ private fun ValidationResultCard(result: URLValidationResult) {
         MaterialTheme.colorScheme.onErrorContainer
     }
     val icon = if (isSafe) Icons.Default.Check else Icons.Default.Warning
-    val title = if (isSafe) "Safe" else getThreatTitle(result.threatType)
+    val title = if (isSafe) "안전함" else getThreatTitle(result.threatType)
 
     Card(
         modifier = Modifier.fillMaxWidth(),
@@ -611,11 +611,11 @@ private fun ValidationResultCard(result: URLValidationResult) {
 
 private fun getThreatTitle(threatType: ThreatType?): String {
     return when (threatType) {
-        ThreatType.PHISHING -> "Phishing Detected"
-        ThreatType.MALWARE -> "Malware Detected"
-        ThreatType.SCAM -> "Scam Detected"
-        ThreatType.SUSPICIOUS -> "Suspicious URL"
-        null -> "Unsafe"
+        ThreatType.PHISHING -> "위협 탐지됨"
+        ThreatType.MALWARE -> "바이러스 탐지됨"
+        ThreatType.SCAM -> "스캠 탐지됨"
+        ThreatType.SUSPICIOUS -> "의심스러운 URL"
+        null -> "안전하지 않음"
     }
 }
 
@@ -637,9 +637,9 @@ private fun OpenInBrowserButton(
             )
         }
         val buttonText = if (isSafe) {
-            "Open in ${defaultBrowser?.name}"
+            "${defaultBrowser.name}로 열기"
         } else {
-            "Open anyway in ${defaultBrowser?.name}"
+            "그래도 ${defaultBrowser.name}로 열기"
         }
 
         Button(
@@ -647,7 +647,7 @@ private fun OpenInBrowserButton(
             modifier = Modifier.fillMaxWidth(),
             colors = buttonColors
         ) {
-            if (defaultBrowser?.icon != null) {
+            if (defaultBrowser.icon != null) {
                 Image(
                     bitmap = defaultBrowser.icon.toBitmap().asImageBitmap(),
                     contentDescription = null,
@@ -664,7 +664,7 @@ private fun OpenInBrowserButton(
             onClick = onSelectDefaultClick,
             modifier = Modifier.fillMaxWidth()
         ) {
-            Text("Select default browser")
+            Text("기본 브라우저 선택하기")
         }
     }
 }
@@ -674,7 +674,7 @@ fun URLCard(url: Uri) {
     val isSecure = url.scheme == HTTPS_SCHEME
     val statusColor = if (isSecure) URLPoliceColors.secure else URLPoliceColors.insecure
     val statusIcon = if (isSecure) Icons.Default.Lock else Icons.Default.Warning
-    val statusText = if (isSecure) "Secure Connection" else "Insecure Connection"
+    val statusText = if (isSecure) "안전한 연결" else "안전하지 않은 연결"
 
     Card(modifier = Modifier.fillMaxWidth()) {
         Column(modifier = Modifier.padding(URLPoliceSpacing.cardPadding)) {
@@ -688,12 +688,12 @@ fun URLCard(url: Uri) {
                 modifier = Modifier.padding(vertical = URLPoliceSpacing.dividerVerticalPadding)
             )
 
-            LabeledText(label = "Host", text = url.host ?: "Unknown")
+            LabeledText(label = "호스트", text = url.host ?: "알려지지 않음")
 
             Spacer(modifier = Modifier.height(URLPoliceSpacing.dividerVerticalPadding))
 
             LabeledText(
-                label = "Full URL",
+                label = "전체 URL",
                 text = url.toString(),
                 textStyle = MaterialTheme.typography.bodySmall,
                 fontFamily = FontFamily.Monospace,
@@ -767,14 +767,14 @@ private fun DefaultBrowserSelector(
     Card(modifier = Modifier.fillMaxWidth()) {
         Column(modifier = Modifier.padding(URLPoliceSpacing.cardPadding)) {
             Text(
-                text = "Default Browser",
+                text = "기본 브라우지",
                 style = MaterialTheme.typography.titleMedium
             )
 
             Spacer(modifier = Modifier.height(URLPoliceSpacing.elementGap))
 
             Text(
-                text = "Select a browser to open links directly without confirmation.",
+                text = "링크를 열어볼 브라우저를 선택해주세요.",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
@@ -844,7 +844,7 @@ private fun BrowserSelectionItem(
             if (isSelected) {
                 Icon(
                     imageVector = Icons.Default.Check,
-                    contentDescription = "Selected",
+                    contentDescription = "선택됨",
                     tint = MaterialTheme.colorScheme.primary
                 )
             }
