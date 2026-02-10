@@ -2,7 +2,6 @@ package kr.seheon.urlpolice
 
 import android.net.Uri
 import kr.seheon.urlpolice.api.ApiClient
-import kr.seheon.urlpolice.api.ReasonDetail
 import kr.seheon.urlpolice.api.UrlCheckRequest
 import kr.seheon.urlpolice.api.UrlCheckResponse
 
@@ -27,7 +26,13 @@ class URLValidationService {
         val url = uri.toString()
 
         return try {
-            val response = apiService.checkUrl(UrlCheckRequest(url))
+            // Call API without client observation (simplified)
+            val response = apiService.analyzeUrl(
+                UrlCheckRequest(
+                    url = url,
+                    clientObservation = null
+                )
+            )
             mapResponseToResult(url, response)
         } catch (e: Exception) {
             // Fallback to error result if API fails
@@ -35,15 +40,46 @@ class URLValidationService {
         }
     }
 
-    private fun mapResponseToResult(url: String, response: UrlCheckResponse): URLValidationResult {
-        val isSafe = response.verdict == VERDICT_ALLOW
-        val confidence = calculateConfidence(response.riskScore)
-        val threatType = determineThreatType(response.reasons)
-        val message = buildMessage(isSafe, response.reasons, response.riskScore)
+    private fun mapResponseToResult(
+        url: String,
+        response: UrlCheckResponse
+    ): URLValidationResult {
+        val urlCheck = response.urlCheck
+
+        // If no URL check result, return error
+        if (urlCheck == null) {
+            return URLValidationResult(
+                url = url,
+                securityLevel = SecurityLevel.WARNING,
+                threatType = ThreatType.SUSPICIOUS,
+                confidence = 0.5f,
+                message = "URL 분석 결과를 받을 수 없습니다."
+            )
+        }
+
+        // Determine security level based on URL check verdict
+        val securityLevel = when (urlCheck.verdict) {
+            VERDICT_ALLOW -> SecurityLevel.SAFE
+            VERDICT_REJECT -> {
+                // Check severity of reasons
+                val hasCritical = urlCheck.reasons.any { it.severity == SEVERITY_CRITICAL }
+                if (hasCritical) SecurityLevel.DANGER else SecurityLevel.WARNING
+            }
+            else -> SecurityLevel.WARNING
+        }
+
+        // Determine threat type from URL checks
+        val threatType = determineThreatType(urlCheck.reasons)
+
+        // Calculate confidence
+        val confidence = calculateConfidence(urlCheck.riskScore)
+
+        // Build message
+        val message = buildMessage(securityLevel, urlCheck.reasons, urlCheck.riskScore)
 
         return URLValidationResult(
             url = url,
-            isSafe = isSafe,
+            securityLevel = securityLevel,
             threatType = threatType,
             confidence = confidence,
             message = message
@@ -56,7 +92,7 @@ class URLValidationService {
         return (100 - riskScore) / 100f
     }
 
-    private fun determineThreatType(reasons: List<ReasonDetail>): ThreatType? {
+    private fun determineThreatType(reasons: List<kr.seheon.urlpolice.api.ReasonDetail>): ThreatType? {
         if (reasons.isEmpty()) return null
 
         // Prioritize based on severity and codes
@@ -72,34 +108,57 @@ class URLValidationService {
         }
     }
 
-    private fun buildMessage(isSafe: Boolean, reasons: List<ReasonDetail>, riskScore: Int): String {
-        if (isSafe) {
-            return "위협이 감지되지 않았습니다. 이 URL은 안전한 것으로 보입니다."
-        }
+    private fun buildMessage(
+        securityLevel: SecurityLevel,
+        reasons: List<kr.seheon.urlpolice.api.ReasonDetail>,
+        riskScore: Int
+    ): String {
+        return when (securityLevel) {
+            SecurityLevel.SAFE -> {
+                "위협이 감지되지 않았습니다. 이 URL은 안전한 것으로 보입니다."
+            }
+            SecurityLevel.WARNING -> {
+                if (reasons.isEmpty()) {
+                    "이 URL은 잠재적으로 안전하지 않을 수 있습니다. 주의하세요."
+                } else {
+                    val primaryReason = reasons
+                        .sortedByDescending {
+                            when (it.severity) {
+                                SEVERITY_CRITICAL -> 3
+                                SEVERITY_MAJOR -> 2
+                                else -> 1
+                            }
+                        }
+                        .firstOrNull()
 
-        if (reasons.isEmpty()) {
-            return "이 URL은 잠재적으로 안전하지 않은 것으로 표시되었습니다."
-        }
-
-        // Build message from most severe reasons
-        val primaryReasons = reasons
-            .sortedByDescending {
-                when (it.severity) {
-                    SEVERITY_CRITICAL -> 3
-                    SEVERITY_MAJOR -> 2
-                    else -> 1
+                    "경고: ${primaryReason?.message ?: "의심스러운 URL입니다."} (위험 점수: $riskScore/100)"
                 }
             }
-            .take(2)
-            .joinToString(" ") { it.message }
+            SecurityLevel.DANGER -> {
+                if (reasons.isEmpty()) {
+                    "이 URL은 위험합니다. 열지 마세요!"
+                } else {
+                    val primaryReasons = reasons
+                        .sortedByDescending {
+                            when (it.severity) {
+                                SEVERITY_CRITICAL -> 3
+                                SEVERITY_MAJOR -> 2
+                                else -> 1
+                            }
+                        }
+                        .take(2)
+                        .joinToString(" ") { it.message }
 
-        return "$primaryReasons (위험 점수: $riskScore/100)"
+                    "위험: $primaryReasons (위험 점수: $riskScore/100)"
+                }
+            }
+        }
     }
 
     private fun createErrorResult(url: String, error: Exception): URLValidationResult {
         return URLValidationResult(
             url = url,
-            isSafe = false,
+            securityLevel = SecurityLevel.WARNING,
             threatType = ThreatType.SUSPICIOUS,
             confidence = 0.5f,
             message = "URL을 검증할 수 없습니다: ${error.message ?: "네트워크 오류"}. 주의하여 진행하세요."

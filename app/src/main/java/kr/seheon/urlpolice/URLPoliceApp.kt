@@ -20,6 +20,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.style.TextAlign
@@ -27,6 +28,14 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.core.graphics.drawable.toBitmap
 import kotlinx.coroutines.launch
+
+// Helper data class for ValidationResultCard styling
+private data class Quadruple<A, B, C, D>(
+    val first: A,
+    val second: B,
+    val third: C,
+    val fourth: D
+)
 
 private object URLPoliceColors {
     val safe = Color(0xFF4CAF50)
@@ -69,7 +78,9 @@ private const val HTTPS_SCHEME = "https"
 fun URLPoliceApp(
     interceptedUrl: Uri?,
     onDismiss: () -> Unit,
-    onOpenInBrowser: (Uri, Browser?) -> Unit
+    onOpenInBrowser: (Uri, Browser?) -> Unit,
+    onOpenDefaultBrowserSettings: () -> Unit,
+    isDefaultBrowser: () -> Boolean
 ) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
@@ -82,6 +93,7 @@ fun URLPoliceApp(
     val defaultBrowser = installedBrowsers.find { it.packageName == defaultBrowserPackage }
     val alwaysShowResults by browserPreferences.alwaysShowResults.collectAsState(initial = false)
     val hasSeenWelcome by browserPreferences.hasSeenWelcome.collectAsState(initial = false)
+    val hasSeenDefaultBrowserTutorial by browserPreferences.hasSeenDefaultBrowserTutorial.collectAsState(initial = false)
 
     var validationState by remember { mutableStateOf<ValidationState>(ValidationState.Idle) }
     var showSettings by remember { mutableStateOf(false) }
@@ -93,7 +105,7 @@ fun URLPoliceApp(
             validationState = ValidationState.Validated(result)
 
             // Auto-open safe URLs if conditions are met
-            if (result.isSafe && alwaysShowResults && defaultBrowser != null) {
+            if (result.securityLevel == SecurityLevel.SAFE && alwaysShowResults && defaultBrowser != null) {
                 onOpenInBrowser(interceptedUrl, defaultBrowser)
             }
         } else {
@@ -111,7 +123,22 @@ fun URLPoliceApp(
         ) {
             // No URL - show welcome/home screen
             if (interceptedUrl == null) {
-                // Show welcome screen on first launch
+                // Show default browser tutorial first if not set as default
+                if (!hasSeenDefaultBrowserTutorial && !isDefaultBrowser()) {
+                    DefaultBrowserTutorial(
+                        onSetAsDefault = {
+                            onOpenDefaultBrowserSettings()
+                        },
+                        onNotNow = {
+                            scope.launch {
+                                browserPreferences.setHasSeenDefaultBrowserTutorial(true)
+                            }
+                        }
+                    )
+                    return@Scaffold
+                }
+
+                // Show welcome screen on first launch (after default browser tutorial)
                 if (!hasSeenWelcome) {
                     FirstLaunchWelcomeScreen(
                         installedBrowsers = installedBrowsers,
@@ -167,7 +194,7 @@ fun URLPoliceApp(
                 }
                 is ValidationState.Validated -> {
                     // Safe URL that was auto-opened - dismiss the app
-                    if (state.result.isSafe && alwaysShowResults && defaultBrowser != null) {
+                    if (state.result.securityLevel == SecurityLevel.SAFE && alwaysShowResults && defaultBrowser != null) {
                         // URL was already opened in LaunchedEffect, just dismiss
                         LaunchedEffect(Unit) {
                             onDismiss()
@@ -240,43 +267,9 @@ private fun FirstLaunchWelcomeScreen(
 
                 InstructionStep(
                     number = "3",
-                    title = "표시 설정",
-                    description = "아래 \"안전한 링크 자동으로 열기\"에서 안전한 URL을 바로 열지, 모든 URL의 검증 결과를 볼지 선택하세요"
-                )
-
-                Spacer(modifier = Modifier.height(URLPoliceSpacing.elementGap))
-
-                InstructionStep(
-                    number = "4",
                     title = "링크 열기",
                     description = "문자 메시지나 이메일에서 온 링크를 열어보세요. URL 파수꾼이 안전한지 검증합니다."
                 )
-            }
-        }
-
-        Spacer(modifier = Modifier.height(URLPoliceSpacing.sectionGap))
-
-        Card(modifier = Modifier.fillMaxWidth()) {
-            Column(modifier = Modifier.padding(URLPoliceSpacing.cardPadding)) {
-                Text(
-                    text = "선호하는 브라우저 선택",
-                    style = MaterialTheme.typography.titleMedium
-                )
-
-                Spacer(modifier = Modifier.height(URLPoliceSpacing.elementGap))
-
-                installedBrowsers.forEach { browser ->
-                    val isSelected = browser.packageName == selectedBrowser?.packageName
-
-                    BrowserSelectionItem(
-                        browser = browser,
-                        isSelected = isSelected,
-                        onClick = {
-                            val newSelection = if (isSelected) null else browser
-                            onBrowserSelected(newSelection)
-                        }
-                    )
-                }
             }
         }
 
@@ -306,6 +299,121 @@ private fun FirstLaunchWelcomeScreen(
                     onCheckedChange = onAlwaysShowResultsChanged
                 )
             }
+        }
+
+        Spacer(modifier = Modifier.height(URLPoliceSpacing.sectionGap))
+
+        Card(modifier = Modifier.fillMaxWidth()) {
+            Column(modifier = Modifier.padding(URLPoliceSpacing.cardPadding)) {
+                Text(
+                    text = "선호하는 브라우저 선택",
+                    style = MaterialTheme.typography.titleMedium
+                )
+
+                Spacer(modifier = Modifier.height(URLPoliceSpacing.elementGap))
+
+                installedBrowsers.forEach { browser ->
+                    val isSelected = browser.packageName == selectedBrowser?.packageName
+
+                    BrowserSelectionItem(
+                        browser = browser,
+                        isSelected = isSelected,
+                        onClick = {
+                            val newSelection = if (isSelected) null else browser
+                            onBrowserSelected(newSelection)
+                        }
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun DefaultBrowserTutorial(
+    onSetAsDefault: () -> Unit,
+    onNotNow: () -> Unit
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .verticalScroll(rememberScrollState()),
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        Icon(
+            imageVector = Icons.Default.Settings,
+            contentDescription = null,
+            modifier = Modifier.size(64.dp),
+            tint = MaterialTheme.colorScheme.primary
+        )
+
+        Spacer(modifier = Modifier.height(24.dp))
+
+        Text(
+            text = "기본 브라우저 설정",
+            style = MaterialTheme.typography.headlineMedium,
+            textAlign = TextAlign.Center
+        )
+
+        Spacer(modifier = Modifier.height(8.dp))
+
+        Text(
+            text = "URL 파수꾼을 기본 브라우저로 설정하면\n모든 링크를 자동으로 검증할 수 있습니다",
+            style = MaterialTheme.typography.bodyLarge,
+            textAlign = TextAlign.Center,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+
+        Spacer(modifier = Modifier.height(24.dp))
+
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            colors = CardDefaults.cardColors(
+                containerColor = MaterialTheme.colorScheme.primaryContainer
+            )
+        ) {
+            Column(modifier = Modifier.padding(16.dp)) {
+                Text(
+                    text = "어떻게 하나요?",
+                    style = MaterialTheme.typography.titleMedium,
+                    color = MaterialTheme.colorScheme.onPrimaryContainer
+                )
+
+                Spacer(modifier = Modifier.height(8.dp))
+
+                Text(
+                    text = "1. 아래 \"기본 브라우저로 설정\" 버튼을 누르세요\n\n" +
+                            "2. 시스템 설정이 열리면\n\n" +
+                            "3. \"기본값으로 열기\" 또는 \"링크 열기\" 옵션을 찾아\n\n" +
+                            "4. \"URL 파수꾼\"을 선택하세요",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onPrimaryContainer
+                )
+            }
+        }
+
+        Spacer(modifier = Modifier.height(24.dp))
+
+        Button(
+            onClick = onSetAsDefault,
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Icon(
+                imageVector = Icons.Default.Settings,
+                contentDescription = null,
+                modifier = Modifier.size(24.dp)
+            )
+            Spacer(modifier = Modifier.width(8.dp))
+            Text("기본 브라우저로 설정")
+        }
+
+        Spacer(modifier = Modifier.height(8.dp))
+
+        OutlinedButton(
+            onClick = onNotNow,
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Text("나중에 하기")
         }
     }
 }
@@ -537,7 +645,7 @@ private fun ValidationResultView(
 
         OpenInBrowserButton(
             defaultBrowser = defaultBrowser,
-            isSafe = result.isSafe,
+            securityLevel = result.securityLevel,
             onOpenClick = onOpenInBrowser,
             onSelectDefaultClick = onSelectDefaultBrowser
         )
@@ -555,19 +663,32 @@ private fun ValidationResultView(
 
 @Composable
 private fun ValidationResultCard(result: URLValidationResult) {
-    val isSafe = result.isSafe
-    val cardColor = if (isSafe) {
-        MaterialTheme.colorScheme.primaryContainer
-    } else {
-        MaterialTheme.colorScheme.errorContainer
+    val (cardColor, contentColor, icon, title) = when (result.securityLevel) {
+        SecurityLevel.SAFE -> {
+            Quadruple(
+                MaterialTheme.colorScheme.primaryContainer,
+                MaterialTheme.colorScheme.onPrimaryContainer,
+                Icons.Default.Check,
+                "안전함"
+            )
+        }
+        SecurityLevel.WARNING -> {
+            Quadruple(
+                URLPoliceColors.warning.copy(alpha = 0.3f),
+                MaterialTheme.colorScheme.onSurface,
+                Icons.Default.Warning,
+                "경고"
+            )
+        }
+        SecurityLevel.DANGER -> {
+            Quadruple(
+                MaterialTheme.colorScheme.errorContainer,
+                MaterialTheme.colorScheme.onErrorContainer,
+                Icons.Default.Warning,
+                getThreatTitle(result.threatType)
+            )
+        }
     }
-    val contentColor = if (isSafe) {
-        MaterialTheme.colorScheme.onPrimaryContainer
-    } else {
-        MaterialTheme.colorScheme.onErrorContainer
-    }
-    val icon = if (isSafe) Icons.Default.Check else Icons.Default.Warning
-    val title = if (isSafe) "안전함" else getThreatTitle(result.threatType)
 
     Card(
         modifier = Modifier.fillMaxWidth(),
@@ -615,6 +736,7 @@ private fun getThreatTitle(threatType: ThreatType?): String {
         ThreatType.MALWARE -> "바이러스 탐지됨"
         ThreatType.SCAM -> "스캠 탐지됨"
         ThreatType.SUSPICIOUS -> "의심스러운 URL"
+        ThreatType.DNS_HIJACKING -> "DNS 하이재킹 감지됨"
         null -> "안전하지 않음"
     }
 }
@@ -622,24 +744,26 @@ private fun getThreatTitle(threatType: ThreatType?): String {
 @Composable
 private fun OpenInBrowserButton(
     defaultBrowser: Browser?,
-    isSafe: Boolean = true,
+    securityLevel: SecurityLevel,
     onOpenClick: () -> Unit,
     onSelectDefaultClick: () -> Unit
 ) {
     val hasDefaultBrowser = defaultBrowser != null
 
     if (hasDefaultBrowser) {
-        val buttonColors = if (isSafe) {
-            ButtonDefaults.buttonColors()
-        } else {
-            ButtonDefaults.buttonColors(
+        val buttonColors = when (securityLevel) {
+            SecurityLevel.SAFE -> ButtonDefaults.buttonColors()
+            SecurityLevel.WARNING -> ButtonDefaults.buttonColors(
+                containerColor = URLPoliceColors.warning
+            )
+            SecurityLevel.DANGER -> ButtonDefaults.buttonColors(
                 containerColor = URLPoliceColors.danger
             )
         }
-        val buttonText = if (isSafe) {
-            "${defaultBrowser.name}로 열기"
-        } else {
-            "그래도 ${defaultBrowser.name}로 열기"
+        val buttonText = when (securityLevel) {
+            SecurityLevel.SAFE -> "${defaultBrowser.name}로 열기"
+            SecurityLevel.WARNING -> "주의하며 ${defaultBrowser.name}로 열기"
+            SecurityLevel.DANGER -> "그래도 ${defaultBrowser.name}로 열기"
         }
 
         Button(
