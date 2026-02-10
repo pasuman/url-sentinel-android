@@ -1,7 +1,5 @@
 #!/bin/sh
 
-export JAVA_HOME='/Applications/Android Studio.app/Contents/jbr/Contents/Home'
-
 #
 # Copyright © 2015 the original authors.
 #
