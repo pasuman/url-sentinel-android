@@ -20,6 +20,7 @@ class BrowserPreferences(private val context: Context) {
         private val KEY_DEFAULT_BROWSER_PACKAGE = stringPreferencesKey("default_browser_package")
         private val KEY_ALWAYS_SHOW_RESULTS = booleanPreferencesKey("always_show_results")
         private val KEY_HAS_SEEN_WELCOME = booleanPreferencesKey("has_seen_welcome")
+        private val KEY_HAS_SEEN_DEFAULT_BROWSER_TUTORIAL = booleanPreferencesKey("has_seen_default_browser_tutorial")
     }
 
     val defaultBrowserPackage: Flow<String?> = context.dataStore.data.map { preferences ->
@@ -32,6 +33,10 @@ class BrowserPreferences(private val context: Context) {
 
     val hasSeenWelcome: Flow<Boolean> = context.dataStore.data.map { preferences ->
         preferences[KEY_HAS_SEEN_WELCOME] ?: false
+    }
+
+    val hasSeenDefaultBrowserTutorial: Flow<Boolean> = context.dataStore.data.map { preferences ->
+        preferences[KEY_HAS_SEEN_DEFAULT_BROWSER_TUTORIAL] ?: false
     }
 
     suspend fun setDefaultBrowser(packageName: String?) {
@@ -53,6 +58,12 @@ class BrowserPreferences(private val context: Context) {
     suspend fun setHasSeenWelcome(seen: Boolean) {
         context.dataStore.edit { preferences ->
             preferences[KEY_HAS_SEEN_WELCOME] = seen
+        }
+    }
+
+    suspend fun setHasSeenDefaultBrowserTutorial(seen: Boolean) {
+        context.dataStore.edit { preferences ->
+            preferences[KEY_HAS_SEEN_DEFAULT_BROWSER_TUTORIAL] = seen
         }
     }
 }
