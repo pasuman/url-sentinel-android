@@ -18,6 +18,7 @@ class URLValidationService {
         private const val IP_ADDRESS_DOMAIN = "IP_ADDRESS_DOMAIN"
         private const val SUSPICIOUS_KEYWORD = "SUSPICIOUS_KEYWORD"
         private const val URL_SHORTENER = "URL_SHORTENER"
+        private const val AI_MODEL_PHISHING = "AI_MODEL_PHISHING"
     }
 
     private val apiService = ApiClient.urlPoliceService
@@ -44,38 +45,25 @@ class URLValidationService {
         url: String,
         response: UrlCheckResponse
     ): URLValidationResult {
-        val urlCheck = response.urlCheck
-
-        // If no URL check result, return error
-        if (urlCheck == null) {
-            return URLValidationResult(
-                url = url,
-                securityLevel = SecurityLevel.WARNING,
-                threatType = ThreatType.SUSPICIOUS,
-                confidence = 0.5f,
-                message = "URL 분석 결과를 받을 수 없습니다."
-            )
-        }
-
-        // Determine security level based on URL check verdict
-        val securityLevel = when (urlCheck.verdict) {
+        // Determine security level based on verdict
+        val securityLevel = when (response.verdict) {
             VERDICT_ALLOW -> SecurityLevel.SAFE
             VERDICT_REJECT -> {
                 // Check severity of reasons
-                val hasCritical = urlCheck.reasons.any { it.severity == SEVERITY_CRITICAL }
+                val hasCritical = response.reasons.any { it.severity == SEVERITY_CRITICAL }
                 if (hasCritical) SecurityLevel.DANGER else SecurityLevel.WARNING
             }
             else -> SecurityLevel.WARNING
         }
 
-        // Determine threat type from URL checks
-        val threatType = determineThreatType(urlCheck.reasons)
+        // Determine threat type from reasons
+        val threatType = determineThreatType(response.reasons)
 
         // Calculate confidence
-        val confidence = calculateConfidence(urlCheck.riskScore)
+        val confidence = calculateConfidence(response.riskScore)
 
         // Build message
-        val message = buildMessage(securityLevel, urlCheck.reasons, urlCheck.riskScore)
+        val message = buildMessage(securityLevel, response.reasons, response.riskScore)
 
         return URLValidationResult(
             url = url,
@@ -100,6 +88,7 @@ class URLValidationService {
         val majorReasons = reasons.filter { it.severity == SEVERITY_MAJOR }
 
         return when {
+            criticalReasons.any { it.code == AI_MODEL_PHISHING } -> ThreatType.PHISHING
             criticalReasons.any { it.code == IP_ADDRESS_DOMAIN } -> ThreatType.PHISHING
             majorReasons.any { it.code == SUSPICIOUS_KEYWORD } -> ThreatType.PHISHING
             majorReasons.any { it.code == URL_SHORTENER } -> ThreatType.SUSPICIOUS
