@@ -6,8 +6,8 @@ import retrofit2.Retrofit
 import retrofit2.converter.moshi.MoshiConverterFactory
 
 object ApiClient {
-    // Default to localhost for development - can be configured via BuildConfig
-    private const val DEFAULT_BASE_URL = "http://10.0.2.2:8080"
+    // Production server URL
+    private const val DEFAULT_BASE_URL = "https://api.url-sentinel.seheon.kr"
 
     private val moshi = Moshi.Builder()
         .add(KotlinJsonAdapterFactory())
